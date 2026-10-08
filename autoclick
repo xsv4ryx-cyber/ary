@@ -1,0 +1,198 @@
+--// Compact Auto Clicker - Roblox Executor
+--// Features:
+--// - Start / Stop
+--// - Set click position
+--// - CPS 1 - 1000
+--// - Draggable UI
+--// - Hide / Show
+--// - Compact design
+--// - Fixed click position
+--// - Hotkey: RightShift = Hide/Show
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local VIM = game:GetService("VirtualInputManager")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- cleanup old
+pcall(function()
+    if getgenv().AutoClickerUI then
+        getgenv().AutoClickerUI:Destroy()
+    end
+end)
+
+local getgenv = getgenv or function() return _G end
+getgenv().AutoClickerUI = nil
+
+--==================================================
+-- STATE
+--==================================================
+
+local running = false
+local selecting = false
+local clickPosition = nil
+local clickThread = nil
+
+local MIN_CPS = 1
+local MAX_CPS = 1000
+
+--==================================================
+-- HELPERS
+--==================================================
+
+local function round(n)
+    return math.floor(n + 0.5)
+end
+
+local function getMousePosition()
+    local p = UIS:GetMouseLocation()
+    return Vector2.new(p.X, p.Y)
+end
+
+local function clickAt(x, y)
+    -- Primary method
+    local success = pcall(function()
+        VIM:SendMouseButtonEvent(
+            x,
+            y,
+            0,
+            true,
+            game,
+            0
+        )
+
+        VIM:SendMouseButtonEvent(
+            x,
+            y,
+            0,
+            false,
+            game,
+            0
+        )
+    end)
+
+    if success then
+        return true
+    end
+
+    -- Fallback
+    if typeof(mouse1click) == "function" then
+        pcall(mouse1click)
+        return true
+    end
+
+    return false
+end
+
+--==================================================
+-- UI
+--==================================================
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "CompactAutoClicker"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = PlayerGui
+
+getgenv().AutoClickerUI = gui
+
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(245, 145)
+main.Position = UDim2.new(0.5, -122, 0.5, -72)
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = main
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(45, 45, 52)
+stroke.Thickness = 1
+stroke.Parent = main
+
+-- shadow
+local shadow = Instance.new("Frame")
+shadow.Size = UDim2.new(1, 8, 1, 8)
+shadow.Position = UDim2.fromOffset(-4, 4)
+shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+shadow.BackgroundTransparency = 0.75
+shadow.ZIndex = 0
+shadow.Parent = main
+
+local shadowCorner = Instance.new("UICorner")
+shadowCorner.CornerRadius = UDim.new(0, 12)
+shadowCorner.Parent = shadow
+
+main.ZIndex = 2
+
+--==================================================
+-- TITLE
+--==================================================
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -45, 0, 32)
+title.Position = UDim2.fromOffset(12, 2)
+title.BackgroundTransparency = 1
+title.Text = "AUTO CLICKER"
+title.TextColor3 = Color3.fromRGB(240, 240, 245)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 13
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+title.ZIndex = 3
+
+local sub = Instance.new("TextLabel")
+sub.Size = UDim2.new(1, -45, 0, 15)
+sub.Position = UDim2.fromOffset(12, 20)
+sub.BackgroundTransparency = 1
+sub.Text = "executor edition"
+sub.TextColor3 = Color3.fromRGB(115, 115, 125)
+sub.Font = Enum.Font.Gotham
+sub.TextSize = 9
+sub.TextXAlignment = Enum.TextXAlignment.Left
+sub.Parent = main
+sub.ZIndex = 3
+
+--==================================================
+-- HIDE BUTTON
+--==================================================
+
+local hideBtn = Instance.new("TextButton")
+hideBtn.Size = UDim2.fromOffset(24, 24)
+hideBtn.Position = UDim2.new(1, -31, 0, 7)
+hideBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 33)
+hideBtn.Text = "−"
+hideBtn.TextColor3 = Color3.fromRGB(200, 200, 205)
+hideBtn.Font = Enum.Font.GothamBold
+hideBtn.TextSize = 16
+hideBtn.AutoButtonColor = false
+hideBtn.Parent = main
+hideBtn.ZIndex = 4
+
+local hideCorner = Instance.new("UICorner")
+hideCorner.CornerRadius = UDim.new(0, 7)
+hideCorner.Parent = hideBtn
+
+--==================================================
+-- CPS
+--==================================================
+
+local cpsLabel = Instance.new("TextLabel")
+cpsLabel.Size = UDim2.fromOffset(35, 28)
+cpsLabel.Position = UDim2.fromOffset(12, 42)
+cpsLabel.BackgroundTransparency = 1
+cpsLabel.Text = "CPS"
+cpsLabel.TextColor3 = Color3.fromRGB(145, 145, 155)
+cpsLabel.Font = Enum.Font.GothamMedium
+cpsLabel.TextSize = 10
+cpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+cpsLabel.Parent = main
+cpsLabel.ZIndex = 3
+
+local cpsBox = Instance.new("TextBox")
+cpsBox.Size = UDim2.fromOffset(75, 28)
+cpsBox.Position = UDim2.fromOffset(4
